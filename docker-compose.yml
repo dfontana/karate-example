@@ -1,0 +1,48 @@
+version: '3.9'
+services:
+  service:
+    build:
+      context: .
+      dockerfile: docker/service/Dockerfile
+    environment:
+      CACHE_HOST: cache:6379
+      HTTP_HOST: http-mock:8181
+      RUST_LOG: info
+    ports:
+      - '8080:8080'
+    depends_on:
+      - migrate-cache
+      - http-mock
+
+  cache:
+    image: redis:7.0.4
+    ports:
+      - '6379:6379'
+
+  migrate-cache:
+    build:
+      context: .
+      dockerfile: docker/cache-migrate/Dockerfile
+    depends_on:
+      - cache
+
+  http-mock:
+    build:
+      context: .
+      dockerfile: docker/http/Dockerfile
+    ports:
+      - 8181:8181
+    volumes:
+      - ./docker/http/mocks:/app/mocks
+
+  karate:
+    build:
+      context: .
+      dockerfile: docker/karate/Dockerfile
+    working_dir: /workdir
+    entrypoint: /bin/bash
+    command: docker/karate/entrypoint.sh
+    volumes:
+      - .:/workdir
+    depends_on:
+      - service
